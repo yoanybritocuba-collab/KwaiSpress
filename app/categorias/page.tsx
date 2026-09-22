@@ -21,6 +21,7 @@ export default async function CategoriasPage() {
     rating: p.rating ? Number(p.rating) : 0,
     reviewsCount: p.reviewsCount || 0,
     sellerName: 'Vendedor',
+    categoryId: p.categoryId || null,
   }))
 
   return <CategoriasClient categorias={categorias} productos={formateados} />

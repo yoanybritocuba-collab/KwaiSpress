@@ -48,7 +48,6 @@ export function ProductCard({ product }: { product: ProductCardData }) {
       sellerId: product.sellerId || '',
       sellerName: product.sellerName || 'Vendedor',
       sellerWhatsapp: product.sellerWhatsapp || '',
-      quantity: 1,
     })
   }
 
@@ -59,7 +58,6 @@ export function ProductCard({ product }: { product: ProductCardData }) {
       href={`/producto/${product.id}`}
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-1 hover:border-[#ffd700]/40 hover:shadow-xl hover:shadow-[#ffd700]/5"
     >
-      {/* Imagen con zoom al hover */}
       <div className="relative aspect-square overflow-hidden bg-[var(--background)]">
         {mainImage ? (
           <img
@@ -74,21 +72,18 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           </div>
         )}
 
-        {/* Badge de descuento */}
         {hasDiscount && (
           <span className="absolute left-3 top-3 rounded-full bg-rose-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
             -{discountPercent}%
           </span>
         )}
 
-        {/* Badge personalizado */}
         {!hasDiscount && product.badge && (
           <span className="absolute left-3 top-3 rounded-full bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#ffd700] backdrop-blur-sm">
             {product.badge}
           </span>
         )}
 
-        {/* Botón favorito (aparece al hover) */}
         <button
           onClick={(e) => {
             e.preventDefault()
@@ -105,14 +100,11 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         </button>
       </div>
 
-      {/* Información */}
       <div className="flex flex-1 flex-col p-3.5">
-        {/* Título */}
         <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-[var(--foreground)] transition-colors group-hover:text-[#ffd700]">
           {product.title}
         </h3>
 
-        {/* Rating */}
         {product.rating && product.rating > 0 && (
           <div className="mt-1.5 flex items-center gap-1">
             <div className="flex">
@@ -137,7 +129,6 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           </div>
         )}
 
-        {/* Precio + botón carrito */}
         <div className="mt-auto flex items-end justify-between gap-2 pt-3">
           <div className="flex flex-col">
             <span className="font-display text-lg font-bold text-[var(--foreground)]">
