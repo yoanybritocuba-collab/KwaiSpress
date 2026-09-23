@@ -19,6 +19,7 @@ export type ProductCardData = {
   sellerName?: string
   sellerWhatsapp?: string
   categoryName?: string
+  categoryId?: string | null
 }
 
 export function ProductCard({ product }: { product: ProductCardData }) {
@@ -56,86 +57,79 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   return (
     <Link
       href={`/producto/${product.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-1 hover:border-[#ffd700]/40 hover:shadow-xl hover:shadow-[#ffd700]/5"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ffd700]/40 hover:shadow-lg hover:shadow-[#ffd700]/5"
     >
+      {/* Imagen */}
       <div className="relative aspect-square overflow-hidden bg-[var(--background)]">
         {mainImage ? (
           <img
             src={mainImage}
             alt={product.title}
             loading="lazy"
-            className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
         ) : (
-          <div className="grid size-full place-items-center text-5xl text-[var(--muted-foreground)]/20">
+          <div className="grid size-full place-items-center text-3xl text-[var(--muted-foreground)]/20">
             📦
           </div>
         )}
 
+        {/* Badge descuento */}
         {hasDiscount && (
-          <span className="absolute left-3 top-3 rounded-full bg-rose-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
             -{discountPercent}%
           </span>
         )}
 
+        {/* Badge personalizado */}
         {!hasDiscount && product.badge && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#ffd700] backdrop-blur-sm">
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-black/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#ffd700] backdrop-blur-sm">
             {product.badge}
           </span>
         )}
 
+        {/* Favorito */}
         <button
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             setLiked(!liked)
           }}
-          className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-white/95 text-slate-700 opacity-0 shadow-lg transition-all duration-300 group-hover:opacity-100 hover:scale-110 hover:bg-[#ffd700] hover:text-black"
+          className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/95 text-slate-700 opacity-0 shadow transition-all group-hover:opacity-100 hover:scale-110 hover:bg-[#ffd700] hover:text-black"
           aria-label={liked ? 'Quitar de favoritos' : 'Añadir a favoritos'}
         >
           <Heart
-            size={15}
+            size={12}
             className={liked ? 'fill-rose-500 text-rose-500' : ''}
           />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-3.5">
-        <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-[var(--foreground)] transition-colors group-hover:text-[#ffd700]">
+      {/* Info */}
+      <div className="flex flex-1 flex-col p-2.5">
+        <h3 className="line-clamp-2 min-h-8 text-[12px] font-medium leading-4 text-[var(--foreground)] transition-colors group-hover:text-[#ffd700]">
           {product.title}
         </h3>
 
         {product.rating && product.rating > 0 && (
-          <div className="mt-1.5 flex items-center gap-1">
-            <div className="flex">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star
-                  key={i}
-                  size={11}
-                  className={
-                    i <= Math.round(product.rating!)
-                      ? 'fill-[#ffd700] text-[#ffd700]'
-                      : 'text-[var(--muted-foreground)]/30'
-                  }
-                />
-              ))}
-            </div>
-            <span className="text-[11px] text-[var(--muted-foreground)]">
+          <div className="mt-1 flex items-center gap-1">
+            <Star size={10} className="fill-[#ffd700] text-[#ffd700]" />
+            <span className="text-[10px] text-[var(--muted-foreground)]">
               {product.rating.toFixed(1)}
               {product.reviewsCount && product.reviewsCount > 0 && (
-                <span> · {product.reviewsCount}</span>
+                <span> ({product.reviewsCount})</span>
               )}
             </span>
           </div>
         )}
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          <div className="flex flex-col">
-            <span className="font-display text-lg font-bold text-[var(--foreground)]">
+        <div className="mt-auto flex items-end justify-between gap-1.5 pt-2">
+          <div className="flex flex-col min-w-0">
+            <span className="font-display text-sm font-bold text-[var(--foreground)] truncate">
               {Number(product.price).toFixed(2)} €
             </span>
             {hasDiscount && (
-              <span className="text-[11px] text-[var(--muted-foreground)] line-through">
+              <span className="text-[9px] text-[var(--muted-foreground)] line-through">
                 {Number(product.oldPrice).toFixed(2)} €
               </span>
             )}
@@ -143,10 +137,10 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
           <button
             onClick={handleAddToCart}
-            className="grid size-10 shrink-0 place-items-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] transition-all hover:scale-110 hover:border-[#3ecf8e] hover:bg-[#3ecf8e] hover:text-black"
+            className="grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] transition-all hover:scale-110 hover:border-[#3ecf8e] hover:bg-[#3ecf8e] hover:text-black"
             aria-label="Añadir al carrito"
           >
-            <ShoppingBag size={16} />
+            <ShoppingBag size={13} />
           </button>
         </div>
       </div>

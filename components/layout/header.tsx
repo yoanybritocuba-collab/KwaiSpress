@@ -37,33 +37,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Navegación desktop */}
-          <nav className="ml-6 hidden items-center gap-7 text-sm font-medium lg:flex">
-            <Link
-              href="/productos"
-              className="group relative text-[var(--muted-foreground)] transition-colors hover:text-white"
-            >
-              Productos
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-[#3ecf8e] to-transparent transition-all duration-300 group-hover:w-full" />
-            </Link>
-            <Link
-              href="/vendedores"
-              className="group relative text-[var(--muted-foreground)] transition-colors hover:text-white"
-            >
-              Vendedores
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-[#3ecf8e] to-transparent transition-all duration-300 group-hover:w-full" />
-            </Link>
-            <Link
-              href="/categorias"
-              className="group relative text-[var(--muted-foreground)] transition-colors hover:text-white"
-            >
-              Categorías
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-[#3ecf8e] to-transparent transition-all duration-300 group-hover:w-full" />
-            </Link>
-          </nav>
-
           {/* Buscador */}
-          <div className="relative ml-auto hidden max-w-lg flex-1 md:block">
+          <div className="relative ml-auto hidden max-w-2xl flex-1 md:block">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]"
               size={16}
@@ -76,7 +51,7 @@ export function Header() {
           </div>
 
           {/* Acciones desktop */}
-          <div className="ml-auto hidden items-center gap-2 md:flex lg:ml-0">
+          <div className="ml-auto hidden items-center gap-2 md:flex">
             <ThemeToggle />
             <CartButton />
             <UserMenu />
@@ -100,7 +75,7 @@ export function Header() {
         {/* Menú móvil */}
         {mobileMenu && (
           <div className="border-t border-[var(--border)] px-4 py-4 md:hidden">
-            <div className="relative mb-4">
+            <div className="relative">
               <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]"
                 size={16}
@@ -111,30 +86,6 @@ export function Header() {
                 className="w-full rounded-full border border-[var(--border)] bg-[var(--card)] py-2.5 pl-11 pr-4 text-sm text-[var(--foreground)] outline-none"
               />
             </div>
-
-            <nav className="flex flex-col gap-1 text-sm font-medium">
-              <Link
-                href="/productos"
-                onClick={() => setMobileMenu(false)}
-                className="rounded-lg px-4 py-3 text-[var(--foreground)] transition-colors hover:bg-[var(--card)]"
-              >
-                Productos
-              </Link>
-              <Link
-                href="/vendedores"
-                onClick={() => setMobileMenu(false)}
-                className="rounded-lg px-4 py-3 text-[var(--foreground)] transition-colors hover:bg-[var(--card)]"
-              >
-                Vendedores
-              </Link>
-              <Link
-                href="/categorias"
-                onClick={() => setMobileMenu(false)}
-                className="rounded-lg px-4 py-3 text-[var(--foreground)] transition-colors hover:bg-[var(--card)]"
-              >
-                Categorías
-              </Link>
-            </nav>
           </div>
         )}
       </header>

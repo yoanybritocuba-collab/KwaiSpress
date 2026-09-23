@@ -1,169 +1,289 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
 import {
-  Activity,
   ArrowUpRight,
   CheckCircle2,
-  MessageSquare,
+  Clock,
+  FolderKanban,
   Package,
   ShieldAlert,
   Store,
   Users,
 } from 'lucide-react'
+import {
+  getAdminStats,
+  getLatestProducts,
+  getLatestSellers,
+} from '@/lib/db/queries-admin'
 
-const metrics = [
-  { label: 'Vendedores pendientes', value: '12', detail: 'Requieren revisión', icon: Store },
-  { label: 'Productos publicados', value: '248', detail: '+18 esta semana', icon: Package },
-  { label: 'Chats abiertos', value: '36', detail: '8 mensajes hoy', icon: MessageSquare },
-  { label: 'Reportes pendientes', value: '4', detail: 'Atención prioritaria', icon: ShieldAlert },
-]
+export const dynamic = 'force-dynamic'
 
-const activity = [
-  ['Nueva solicitud de vendedor', 'María López quiere abrir una tienda', 'Hace 8 min', 'Revisar'],
-  ['Producto pendiente de aprobación', 'Auriculares inalámbricos · Tecnología', 'Hace 23 min', 'Moderar'],
-  ['Reporte recibido', 'Un usuario reportó un mensaje', 'Hace 1 h', 'Investigar'],
-]
+export default async function AdminPage() {
+  const [stats, latestProducts, latestSellers] = await Promise.all([
+    getAdminStats(),
+    getLatestProducts(5),
+    getLatestSellers(5),
+  ])
 
-export default function AdminPage() {
-  const [approval, setApproval] = useState(true)
+  const metrics = [
+    {
+      label: 'Vendedores activos',
+      value: String(stats.sellersApproved),
+      detail: `${stats.sellersPending} pendientes · ${stats.sellersSuspended} suspendidos`,
+      icon: Store,
+      href: '/admin/vendedores',
+      tone: 'text-[#3ecf8e]',
+    },
+    {
+      label: 'Productos publicados',
+      value: String(stats.productsPublished),
+      detail: `${stats.productsTotal} total`,
+      icon: Package,
+      href: '/admin/productos',
+      tone: 'text-[#ffd700]',
+    },
+    {
+      label: 'Productos pendientes',
+      value: String(stats.productsPending),
+      detail: 'Requieren revisión',
+      icon: ShieldAlert,
+      href: '/admin/productos',
+      tone: 'text-yellow-400',
+    },
+    {
+      label: 'Usuarios registrados',
+      value: String(stats.usersTotal),
+      detail: `${stats.categoriesTotal} categorías`,
+      icon: Users,
+      href: '/admin',
+      tone: 'text-sky-400',
+    },
+  ]
 
   return (
     <div className="mx-auto max-w-6xl">
+      {/* Cabecera */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-white/40">
             Centro de control
           </p>
-          <h1 className="text-3xl font-black tracking-tight">Buenos días, Director.</h1>
+          <h1 className="text-3xl font-black tracking-tight">
+            Buenos días, Director.
+          </h1>
           <p className="mt-2 text-sm text-white/50">
-            Administra vendedores, productos, conversaciones y toda la experiencia.
+            Administra vendedores, productos, conversaciones y toda la
+            experiencia.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-[#10b77f]/20 bg-[#10b77f]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#10b77f]">
-          <span className="size-1.5 rounded-full bg-[#10b77f]" /> Sistema operativo
+        <div className="flex items-center gap-2 rounded-full border border-[#3ecf8e]/20 bg-[#3ecf8e]/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#3ecf8e]">
+          <span className="size-1.5 rounded-full bg-[#3ecf8e]" /> Sistema
+          operativo
         </div>
       </div>
 
+      {/* Métricas */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(({ label, value, detail, icon: Icon }) => (
-          <article
+        {metrics.map(({ label, value, detail, icon: Icon, href, tone }) => (
+          <Link
             key={label}
-            className="rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/30"
+            href={href}
+            className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#ffd700]/30"
           >
-            <Icon size={18} className="text-white/40" />
+            <div className="flex items-start justify-between">
+              <Icon size={18} className={tone} />
+              <ArrowUpRight
+                size={14}
+                className="text-white/20 transition-colors group-hover:text-[#ffd700]"
+              />
+            </div>
             <p className="mt-5 text-3xl font-black">{value}</p>
             <p className="mt-1 text-sm font-medium text-white/80">{label}</p>
             <p className="mt-1.5 text-xs text-white/40">{detail}</p>
-          </article>
+          </Link>
         ))}
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      {/* Grid 2 columnas */}
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        {/* Últimos productos */}
         <section className="rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="font-bold">Actividad de la plataforma</h2>
-              <p className="mt-1 text-xs text-white/40">Últimos 30 días</p>
+              <h2 className="font-bold">Últimos productos</h2>
+              <p className="mt-1 text-xs text-white/40">Los más recientes</p>
             </div>
-            <Activity size={18} className="text-white/40" />
+            <Link
+              href="/admin/productos"
+              className="text-xs font-medium text-[#ffd700] transition-colors hover:text-[#ffd700]/80"
+            >
+              Ver todos
+            </Link>
           </div>
-          <div className="mt-8 flex h-40 items-end gap-1.5">
-            {[32, 48, 40, 58, 52, 70, 62, 82, 68, 92, 76, 100, 85, 94, 73, 88, 96, 78, 100, 90, 83, 98, 86, 100, 92, 98, 94, 100, 96, 100].map((height, index) => (
-              <div
-                key={index}
-                className="flex-1 rounded-t-sm bg-white/10 transition-colors hover:bg-[#d4af37]"
-                style={{ height: `${height}%` }}
-              />
-            ))}
-          </div>
-          <div className="mt-4 flex justify-between text-[10px] text-white/30">
-            <span>Hace 30 días</span>
-            <span>Hoy</span>
-          </div>
+
+          {latestProducts.length === 0 ? (
+            <p className="py-8 text-center text-xs text-white/40">
+              No hay productos todavía
+            </p>
+          ) : (
+            <div className="flex flex-col divide-y divide-white/[0.06]">
+              {latestProducts.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-[var(--card)]">
+                    {p.imageUrl ? (
+                      <img
+                        src={p.imageUrl}
+                        alt={p.title}
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid size-full place-items-center text-sm text-white/30">
+                        📦
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{p.title}</p>
+                    <p className="mt-0.5 text-xs text-white/40">
+                      {Number(p.price).toFixed(2)} €
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      p.status === 'published'
+                        ? 'bg-[#3ecf8e]/10 text-[#3ecf8e]'
+                        : p.status === 'pending'
+                          ? 'bg-yellow-500/10 text-yellow-400'
+                          : 'bg-white/5 text-white/40'
+                    }`}
+                  >
+                    {p.status === 'published'
+                      ? 'Publicado'
+                      : p.status === 'pending'
+                        ? 'Pendiente'
+                        : p.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
+        {/* Últimos vendedores */}
         <section className="rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
-          <h2 className="font-bold">Accesos rápidos</h2>
-          <p className="mt-1 text-xs text-white/40">Gestiona lo urgente</p>
-          <div className="mt-5 flex flex-col gap-2">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="font-bold">Últimos vendedores</h2>
+              <p className="mt-1 text-xs text-white/40">
+                Solicitudes recientes
+              </p>
+            </div>
             <Link
-              href="/admin/sellers"
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:border-[#d4af37]/40 hover:text-[#d4af37]"
+              href="/admin/vendedores"
+              className="text-xs font-medium text-[#ffd700] transition-colors hover:text-[#ffd700]/80"
             >
-              <span className="flex items-center gap-3">
-                <Store size={16} /> Revisar vendedores
-              </span>
-              <ArrowUpRight size={14} />
-            </Link>
-            <Link
-              href="/admin/categories"
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:border-[#d4af37]/40 hover:text-[#d4af37]"
-            >
-              <span className="flex items-center gap-3">
-                <Package size={16} /> Gestionar categorías
-              </span>
-              <ArrowUpRight size={14} />
-            </Link>
-            <Link
-              href="/admin/users"
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:border-[#d4af37]/40 hover:text-[#d4af37]"
-            >
-              <span className="flex items-center gap-3">
-                <Users size={16} /> Ver usuarios
-              </span>
-              <ArrowUpRight size={14} />
+              Ver todos
             </Link>
           </div>
+
+          {latestSellers.length === 0 ? (
+            <p className="py-8 text-center text-xs text-white/40">
+              No hay vendedores todavía
+            </p>
+          ) : (
+            <div className="flex flex-col divide-y divide-white/[0.06]">
+              {latestSellers.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#3ecf8e]/10 text-xs font-bold text-[#3ecf8e]">
+                      {s.storeName.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {s.storeName}
+                      </p>
+                      <p className="truncate text-xs text-white/40">
+                        /{s.slug}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      s.status === 'approved'
+                        ? 'bg-[#3ecf8e]/10 text-[#3ecf8e]'
+                        : s.status === 'pending'
+                          ? 'bg-yellow-500/10 text-yellow-400'
+                          : 'bg-red-500/10 text-red-400'
+                    }`}
+                  >
+                    {s.status === 'approved'
+                      ? 'Aprobado'
+                      : s.status === 'pending'
+                        ? 'Pendiente'
+                        : 'Suspendido'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
+      {/* Accesos rápidos */}
       <section className="mt-6 rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
-        <label className="flex cursor-pointer items-center justify-between gap-3">
-          <div>
-            <p className="font-bold">Moderación previa</p>
-            <p className="mt-1 text-xs text-white/45">
-              Aprobar productos antes de publicarlos.
-            </p>
-          </div>
-          <input
-            type="checkbox"
-            checked={approval}
-            onChange={(e) => setApproval(e.target.checked)}
-            className="size-4 accent-[#10b77f]"
+        <h2 className="mb-5 font-bold">Accesos rápidos</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAccess
+            href="/admin/mi-tienda"
+            label="Mi Tienda"
+            icon={Store}
           />
-        </label>
-      </section>
-
-      <section className="mt-6 rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold">Actividad reciente</h2>
-            <p className="mt-1 text-xs text-white/40">Registro de acciones y alertas</p>
-          </div>
-          <CheckCircle2 size={18} className="text-white/40" />
-        </div>
-        <div className="flex flex-col divide-y divide-white/[0.06]">
-          {activity.map(([title, description, time, action]) => (
-            <div
-              key={title}
-              className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
-            >
-              <div>
-                <p className="text-sm font-medium">{title}</p>
-                <p className="mt-1 text-xs text-white/45">{description}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-white/30">{time}</span>
-                <button className="text-xs font-semibold text-white/60 transition-colors hover:text-[#d4af37]">
-                  {action}
-                </button>
-              </div>
-            </div>
-          ))}
+          <QuickAccess
+            href="/admin/vendedores"
+            label="Vendedores"
+            icon={Users}
+          />
+          <QuickAccess
+            href="/admin/productos"
+            label="Productos"
+            icon={Package}
+          />
+          <QuickAccess
+            href="/admin/categorias"
+            label="Categorías"
+            icon={FolderKanban}
+          />
         </div>
       </section>
     </div>
+  )
+}
+
+function QuickAccess({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#0f0f0f] px-4 py-3 text-sm font-medium text-white/70 transition-all hover:-translate-y-0.5 hover:border-[#ffd700]/40 hover:text-[#ffd700]"
+    >
+      <Icon size={16} />
+      {label}
+      <ArrowUpRight
+        size={13}
+        className="ml-auto text-white/30 transition-colors group-hover:text-[#ffd700]"
+      />
+    </Link>
   )
 }

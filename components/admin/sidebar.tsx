@@ -14,10 +14,12 @@ import {
   X,
   ShieldCheck,
   Crown,
+  ShoppingBag,
 } from 'lucide-react'
 
 const navigation = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/mi-tienda', label: 'Mi Tienda', icon: ShoppingBag },
   { href: '/admin/vendedores', label: 'Vendedores', icon: Store },
   { href: '/admin/productos', label: 'Productos', icon: Package },
   { href: '/admin/categorias', label: 'Categorías', icon: FolderKanban },
@@ -68,10 +70,9 @@ export function AdminSidebar({
           </button>
         </div>
 
-        {/* Badge "Admin" FUTURISTA */}
+        {/* Badge "Admin" */}
         <div className="border-b border-[var(--border)] p-4">
           <div className="group relative overflow-hidden rounded-2xl border border-[#ffd700]/30 bg-gradient-to-br from-[#ffd700]/[0.10] via-transparent to-[#3ecf8e]/[0.05] p-4">
-            {/* Grid de fondo */}
             <div
               className="pointer-events-none absolute inset-0 opacity-[0.05]"
               style={{
@@ -81,7 +82,6 @@ export function AdminSidebar({
               }}
             />
 
-            {/* Halos */}
             <div className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-[#ffd700]/20 blur-2xl" />
             <div className="pointer-events-none absolute -left-8 -bottom-8 size-24 rounded-full bg-[#3ecf8e]/20 blur-2xl" />
 
@@ -131,7 +131,9 @@ export function AdminSidebar({
                   <Icon
                     size={18}
                     className={`transition-transform group-hover:scale-110 ${
-                      active ? 'text-[#ffd700] drop-shadow-[0_0_6px_rgba(255,215,0,0.5)]' : ''
+                      active
+                        ? 'text-[#ffd700] drop-shadow-[0_0_6px_rgba(255,215,0,0.5)]'
+                        : ''
                     }`}
                   />
                   <span className="flex-1">{label}</span>

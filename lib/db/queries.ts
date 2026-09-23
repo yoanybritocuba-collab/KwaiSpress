@@ -1,6 +1,10 @@
 import { db } from './index'
-import { categories, products, sellers } from './schema'
+import { categories, products, sellers, productOffers } from './schema'
 import { eq, and, desc, asc, sql, or, ilike, isNull, inArray } from 'drizzle-orm'
+
+/* ============================================================
+   CATEGORÍAS
+   ============================================================ */
 
 export async function getMainCategories() {
   return db
@@ -45,7 +49,11 @@ export async function getCategories() {
   return getMainCategories()
 }
 
-export async function getPublishedProducts(limit = 20) {
+/* ============================================================
+   PRODUCTOS
+   ============================================================ */
+
+export async function getPublishedProducts(limit = 100) {
   return db
     .select()
     .from(products)
@@ -64,7 +72,9 @@ export async function getProductsByCategory(categorySlug: string) {
   return db
     .select()
     .from(products)
-    .where(and(eq(products.status, 'published'), inArray(products.categoryId, ids)))
+    .where(
+      and(eq(products.status, 'published'), inArray(products.categoryId, ids)),
+    )
     .orderBy(desc(products.createdAt))
 }
 
@@ -80,7 +90,11 @@ export async function getProductWithSeller(productId: string) {
   const product = prodRows[0]
 
   const sellerRows = product.sellerId
-    ? await db.select().from(sellers).where(eq(sellers.id, product.sellerId)).limit(1)
+    ? await db
+        .select()
+        .from(sellers)
+        .where(eq(sellers.id, product.sellerId))
+        .limit(1)
     : []
 
   return {
@@ -98,7 +112,10 @@ export async function searchProducts(query: string, limit = 30) {
     .where(
       and(
         eq(products.status, 'published'),
-        or(ilike(products.title, `%${query}%`), ilike(products.description, `%${query}%`)),
+        or(
+          ilike(products.title, `%${query}%`),
+          ilike(products.description, `%${query}%`),
+        ),
       ),
     )
     .limit(limit)
@@ -129,4 +146,104 @@ export async function getSimilarProducts(productId: string, limit = 6) {
 export async function isAdultCategory(slug: string) {
   const category = await getCategoryBySlug(slug)
   return category?.isAdult === true
+}
+
+/* ============================================================
+   SECCIONES DE LA HOME
+   ============================================================ */
+
+/** Productos con mayor descuento (para "Ofertas del día") */
+export async function getOfertasDelDia(limit = 8) {
+  return db
+    .select()
+    .from(products)
+    .where(
+      and(
+        eq(products.status, 'published'),
+        sql`${products.oldPrice} IS NOT NULL`,
+        sql`${products.oldPrice} > ${products.price}`,
+      ),
+    )
+    .orderBy(
+      desc(
+        sql`(${products.oldPrice} - ${products.price}) / ${products.oldPrice}`,
+      ),
+    )
+    .limit(limit)
+}
+
+/** Productos nuevos (últimos 30 días) */
+export async function getNovedades(limit = 8) {
+  return db
+    .select()
+    .from(products)
+    .where(eq(products.status, 'published'))
+    .orderBy(desc(products.createdAt))
+    .limit(limit)
+}
+
+/** Productos más vendidos (más reseñas) */
+export async function getMasVendidos(limit = 8) {
+  return db
+    .select()
+    .from(products)
+    .where(eq(products.status, 'published'))
+    .orderBy(desc(products.reviewsCount))
+    .limit(limit)
+}
+
+/* ============================================================
+   PRODUCTO COMPLETO CON OFERTAS Y VENDEDORES
+   ============================================================ */
+
+export async function getProductFull(productId: string) {
+  /* Producto */
+  const prodRows = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1)
+
+  if (!prodRows[0]) return null
+  const product = prodRows[0]
+
+  /* Vendedor original */
+  const sellerRows = product.sellerId
+    ? await db
+        .select()
+        .from(sellers)
+        .where(eq(sellers.id, product.sellerId))
+        .limit(1)
+    : []
+
+  /* Categoría */
+  const catRows = product.categoryId
+    ? await db
+        .select()
+        .from(categories)
+        .where(eq(categories.id, product.categoryId))
+        .limit(1)
+    : []
+
+  /* Todas las ofertas de este producto con sus vendedores */
+  const ofertas = await db
+    .select({
+      offer: productOffers,
+      seller: sellers,
+    })
+    .from(productOffers)
+    .leftJoin(sellers, eq(productOffers.sellerId, sellers.id))
+    .where(
+      and(
+        eq(productOffers.productId, productId),
+        eq(productOffers.active, true),
+      ),
+    )
+
+  return {
+    product,
+    seller: sellerRows[0] || null,
+    category: catRows[0] || null,
+    ofertas,
+  }
 }
