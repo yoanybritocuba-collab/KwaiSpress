@@ -1,7 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import { Inter, Playfair_Display } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
-import { ThemeProvider } from '@/components/theme/theme-provider'
+import { ThemeProvider, themeInitScript } from '@/components/theme/theme-provider'
 import { CartProvider } from '@/components/cart/cart-context'
 import { CartDrawer } from '@/components/cart/cart-drawer'
 import { FloatingButtons } from '@/components/layout/floating-buttons'
@@ -21,6 +21,7 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'KwaiSpress — Productos seleccionados, atención directa',
   description:
     'Marketplace con productos verificados de vendedores de confianza.',
@@ -55,6 +56,9 @@ export default function RootLayout({
       className={`dark ${inter.variable} ${playfair.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="bg-[var(--background)] text-[var(--foreground)] antialiased">
         <ThemeProvider>
           <CartProvider>

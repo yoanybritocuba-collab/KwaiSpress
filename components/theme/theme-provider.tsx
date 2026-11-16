@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -12,23 +12,38 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
-  const [mounted, setMounted] = useState(false)
+export const THEME_KEY = 'kwaisspress-theme'
 
+/**
+ * Script que se ejecuta ANTES de pintar (ver app/layout.tsx) para evitar el
+ * parpadeo oscuro→claro. Está protegido con try/catch porque localStorage
+ * puede estar bloqueado (modo privado, navegadores embebidos).
+ */
+export const themeInitScript = `(function(){try{var t=localStorage.getItem('${THEME_KEY}');var d=t==='light'?false:t==='system'?window.matchMedia('(prefers-color-scheme: dark)').matches:true;var c=document.documentElement.classList;c.remove('light','dark');c.add(d?'dark':'light')}catch(e){}})()`
+
+function readStored(): Theme {
+  try {
+    const v = localStorage.getItem(THEME_KEY)
+    if (v === 'light' || v === 'dark' || v === 'system') return v
+  } catch {
+    /* almacenamiento no disponible */
+  }
+  return 'dark'
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>('dark')
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
+
+  // Lee la preferencia guardada tras montar (evita desajustes de hidratación)
   useEffect(() => {
-    setMounted(true)
-    const stored = localStorage.getItem('kwaisspress-theme') as Theme | null
-    if (stored) setTheme(stored)
+    setThemeState(readStored())
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
-
     const root = document.documentElement
 
-    const applyTheme = (t: 'light' | 'dark') => {
+    const apply = (t: 'light' | 'dark') => {
       root.classList.remove('light', 'dark')
       root.classList.add(t)
       setResolvedTheme(t)
@@ -36,19 +51,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (theme === 'system') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      applyTheme(mq.matches ? 'dark' : 'light')
-
-      const handler = (e: MediaQueryListEvent) => {
-        applyTheme(e.matches ? 'dark' : 'light')
+      apply(mq.matches ? 'dark' : 'light')
+      const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light')
+      // addEventListener no existe en Safari < 14
+      if (mq.addEventListener) {
+        mq.addEventListener('change', handler)
+        return () => mq.removeEventListener('change', handler)
       }
-      mq.addEventListener('change', handler)
-      return () => mq.removeEventListener('change', handler)
-    } else {
-      applyTheme(theme)
+      mq.addListener(handler)
+      return () => mq.removeListener(handler)
     }
 
-    localStorage.setItem('kwaisspress-theme', theme)
-  }, [theme, mounted])
+    apply(theme)
+  }, [theme])
+
+  const setTheme = useCallback((t: Theme) => {
+    setThemeState(t)
+    try {
+      localStorage.setItem(THEME_KEY, t)
+    } catch {
+      /* ignorar */
+    }
+  }, [])
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>

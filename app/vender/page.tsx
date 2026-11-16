@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Store, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { solicitarVendedor } from '@/app/actions/vendedores'
 
 export default function VenderPage() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [checking, setChecking] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -16,35 +15,37 @@ export default function VenderPage() {
   const [storeName, setStoreName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [location, setLocation] = useState('')
 
   useEffect(() => {
+    let cancelled = false
     const init = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!data.user) {
-        router.push('/login')
-        return
-      }
-
-      // ¿Ya tiene solicitud de vendedor?
-      const { data: existing } = await supabase
-        .from('sellers')
-        .select('id, status')
-        .eq('user_id', data.user.id)
-        .maybeSingle()
-
-      if (existing) {
-        if (existing.status === 'approved') {
-          router.push('/vendedor')
-        } else {
-          router.push('/perfil')
+      try {
+        const res = await fetch('/api/me', { cache: 'no-store' })
+        const data = await res.json()
+        if (cancelled) return
+        if (!data.user) {
+          router.replace('/login?next=/vender')
+          return
         }
-        return
+        if (data.seller) {
+          router.replace(
+            data.seller.status === 'approved' ? `/vendedor/${data.seller.slug}/panel` : '/perfil',
+          )
+          return
+        }
+        setChecking(false)
+      } catch {
+        if (!cancelled) setError('No se pudo comprobar tu sesión. Recarga la página.')
+        setChecking(false)
       }
-
-      setChecking(false)
     }
     init()
-  }, [router, supabase])
+    return () => {
+      cancelled = true
+    }
+  }, [router])
 
   // Genera el slug automáticamente desde el nombre
   const handleStoreNameChange = (value: string) => {
@@ -63,36 +64,19 @@ export default function VenderPage() {
     setSaving(true)
     setError('')
 
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) {
-      router.push('/login')
-      return
-    }
-
-    const { error: insertError } = await supabase.from('sellers').insert({
-      user_id: userData.user.id,
-      store_name: storeName.trim(),
-      slug: slug.trim(),
-      description: description.trim() || null,
-      status: 'pending',
-      verified: false,
+    const res = await solicitarVendedor({
+      storeName,
+      slug,
+      description,
+      whatsapp,
+      location,
     })
 
-    if (insertError) {
-      if (insertError.message.includes('duplicate')) {
-        setError('Ese slug ya está en uso. Prueba con otro nombre de tienda.')
-      } else {
-        setError(insertError.message)
-      }
+    if (!res.ok) {
+      setError(res.error)
       setSaving(false)
       return
     }
-
-    // También actualizamos el rol del usuario a "seller"
-    // para que al aprobar ya tenga el rol correcto.
-    await supabase.auth.updateUser({
-      data: { role: 'seller' },
-    })
 
     router.push('/perfil')
     router.refresh()
@@ -195,6 +179,36 @@ export default function VenderPage() {
                 <p className="mt-2 text-right text-xs text-white/30">
                   {description.length}/500
                 </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="wa" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">
+                    WhatsApp (con prefijo)
+                  </label>
+                  <input
+                    id="wa"
+                    type="tel"
+                    inputMode="tel"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    placeholder="34600111222"
+                    className="w-full rounded-xl border border-white/[0.08] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d4af37]/50"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="loc" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">
+                    Ubicación
+                  </label>
+                  <input
+                    id="loc"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    maxLength={80}
+                    placeholder="Barcelona"
+                    className="w-full rounded-xl border border-white/[0.08] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d4af37]/50"
+                  />
+                </div>
               </div>
             </div>
           </div>

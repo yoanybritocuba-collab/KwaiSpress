@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { X, Trash2, Plus, Minus, MessageCircle } from 'lucide-react'
 import { useCart } from './cart-context'
 
@@ -15,6 +16,19 @@ export function CartDrawer() {
     clearCart,
   } = useCart()
 
+  /* Escape cierra el carrito y se bloquea el scroll de fondo mientras está abierto */
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeCart()
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [isOpen, closeCart])
+
   if (!isOpen) return null
 
   /* Blindaje: asegurar que items siempre sea un array */
@@ -27,7 +41,7 @@ export function CartDrawer() {
   ) => {
     const cleanNumber = whatsapp.replace(/\D/g, '')
     const lines = sellerItems.map(
-      (i) => `• ${i.title} ($${i.price.toFixed(2)}) x${i.quantity}`,
+      (i) => `• ${i.title} (${i.price.toFixed(2)} €) x${i.quantity}`,
     )
     const message = `Hola, me interesan estos productos:\n\n${lines.join('\n')}\n\n¿Están disponibles?`
     return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`
@@ -36,9 +50,10 @@ export function CartDrawer() {
   /* Agrupar por vendedor (con protección) */
   const itemsBySeller = safeItems.reduce<Record<string, typeof safeItems>>(
     (acc, item) => {
-      if (!item || !item.sellerId) return acc
-      if (!acc[item.sellerId]) acc[item.sellerId] = []
-      acc[item.sellerId].push(item)
+      if (!item) return acc
+      const key = item.sellerId || 'sin-vendedor'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(item)
       return acc
     },
     {},
@@ -170,45 +185,40 @@ export function CartDrawer() {
               </span>
             </div>
 
-            {sellers.length === 1 && sellers[0][1][0] ? (
-              <a
-                href={buildWhatsappUrl(
-                  sellers[0][1][0].sellerWhatsapp,
-                  sellers[0][1],
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#3ecf8e] px-6 py-3.5 text-sm font-semibold text-black transition-all hover:bg-[#ffd700]"
-              >
-                <MessageCircle size={16} />
-                Contactar vendedor
-              </a>
-            ) : (
-              <div className="space-y-2">
+            <div className="space-y-2">
+              {sellers.length > 1 && (
                 <p className="mb-3 text-center text-xs text-[var(--muted-foreground)]">
                   {sellers.length} vendedores en tu carrito
                 </p>
-                {sellers.map(([sellerId, sellerItems]) => {
-                  const firstItem = sellerItems[0]
-                  if (!firstItem) return null
-                  return (
-                    <a
-                      key={sellerId}
-                      href={buildWhatsappUrl(
-                        firstItem.sellerWhatsapp,
-                        sellerItems,
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[#3ecf8e] px-6 py-3 text-sm font-semibold text-black transition-all hover:bg-[#ffd700]"
-                    >
-                      <MessageCircle size={15} />
-                      Contactar {firstItem.sellerName}
-                    </a>
-                  )
-                })}
-              </div>
-            )}
+              )}
+              {sellers.map(([sellerId, sellerItems]) => {
+                const firstItem = sellerItems[0]
+                if (!firstItem) return null
+                const hasWhatsapp = (firstItem.sellerWhatsapp || '').replace(/\D/g, '').length >= 8
+                const label =
+                  sellers.length === 1 ? 'Contactar vendedor' : `Contactar ${firstItem.sellerName}`
+
+                return hasWhatsapp ? (
+                  <a
+                    key={sellerId}
+                    href={buildWhatsappUrl(firstItem.sellerWhatsapp, sellerItems)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-full bg-[#3ecf8e] px-6 py-3 text-sm font-semibold text-black transition-all hover:bg-[#ffd700]"
+                  >
+                    <MessageCircle size={15} />
+                    {label}
+                  </a>
+                ) : (
+                  <p
+                    key={sellerId}
+                    className="rounded-full border border-[var(--border)] px-6 py-3 text-center text-xs text-[var(--muted-foreground)]"
+                  >
+                    {firstItem.sellerName}: sin WhatsApp. Abre el producto para contactar.
+                  </p>
+                )
+              })}
+            </div>
 
             <button
               onClick={clearCart}

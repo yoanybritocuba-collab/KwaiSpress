@@ -47,40 +47,43 @@ export default function PerfilPage() {
   const [tab, setTab] = useState<Tab>('comprar')
 
   useEffect(() => {
+    let cancelled = false
     const load = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!data.user) {
-        router.push('/login')
+      try {
+        const res = await fetch('/api/me', { cache: 'no-store' })
+        const data = await res.json()
+        if (cancelled) return
+        if (!data.user) {
+          router.replace('/login?next=/perfil')
+          return
+        }
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.isAdmin ? 'admin' : 'customer',
+        })
+        if (data.seller) {
+          setSeller({
+            id: data.seller.id,
+            store_name: data.seller.storeName,
+            slug: data.seller.slug,
+            description: null,
+            status: data.seller.status,
+            created_at: data.seller.createdAt,
+          })
+        }
+      } catch {
+        if (!cancelled) router.replace('/login')
         return
       }
-
-      setUser({
-        id: data.user.id,
-        email: data.user.email || '',
-        name:
-          (data.user.user_metadata?.name as string) ||
-          data.user.email?.split('@')[0] ||
-          'Usuario',
-        role:
-          (data.user.user_metadata?.role as string) ||
-          (data.user.app_metadata?.role as string) ||
-          'customer',
-      })
-
-      const { data: sellerData } = await supabase
-        .from('sellers')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .maybeSingle()
-
-      if (sellerData) {
-        setSeller(sellerData as SellerInfo)
-      }
-
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
     load()
-  }, [router, supabase])
+    return () => {
+      cancelled = true
+    }
+  }, [router])
 
   if (loading) {
     return (
@@ -179,9 +182,8 @@ export default function PerfilPage() {
           {tab === 'comprar' && (
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Link
-                  href="/perfil/chats"
-                  className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
+                <div
+                  className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
                 >
                   <MessageCircle
                     size={20}
@@ -191,11 +193,11 @@ export default function PerfilPage() {
                   <p className="mt-1 text-xs text-white/50">
                     Conversaciones con vendedores
                   </p>
-                </Link>
+                  <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
+</div>
 
-                <Link
-                  href="/perfil/favoritos"
-                  className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
+                <div
+                  className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
                 >
                   <Heart
                     size={20}
@@ -205,7 +207,8 @@ export default function PerfilPage() {
                   <p className="mt-1 text-xs text-white/50">
                     Productos que has guardado
                   </p>
-                </Link>
+                  <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
+</div>
               </div>
 
               <div className="rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
@@ -311,7 +314,7 @@ export default function PerfilPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Link
-                      href="/vendedor/productos"
+                      href={`/vendedor/${seller?.slug}/panel`}
                       className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
                     >
                       <Package
@@ -324,9 +327,8 @@ export default function PerfilPage() {
                       </p>
                     </Link>
 
-                    <Link
-                      href="/vendedor/chats"
-                      className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
+                    <div
+                      className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
                     >
                       <MessageCircle
                         size={20}
@@ -336,10 +338,11 @@ export default function PerfilPage() {
                       <p className="mt-1 text-xs text-white/50">
                         Conversaciones con clientes
                       </p>
-                    </Link>
+                      <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
+</div>
 
                     <Link
-                      href="/vendedor/perfil"
+                      href={`/vendedor/${seller?.slug}`}
                       className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
                     >
                       <Store
@@ -348,21 +351,21 @@ export default function PerfilPage() {
                       />
                       <h3 className="mt-4 font-bold">Mi tienda</h3>
                       <p className="mt-1 text-xs text-white/50">
-                        Nombre, logo y descripción
+                        Ver tu tienda pública
                       </p>
                     </Link>
 
                     <Link
-                      href="/vendedor"
+                      href={`/vendedor/${seller?.slug}/panel/productos/nuevo`}
                       className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#d4af37]/40"
                     >
                       <LayoutDashboard
                         size={20}
                         className="text-[#10b77f] transition-colors group-hover:text-[#d4af37]"
                       />
-                      <h3 className="mt-4 font-bold">Dashboard</h3>
+                      <h3 className="mt-4 font-bold">Añadir producto</h3>
                       <p className="mt-1 text-xs text-white/50">
-                        Estadísticas y resumen
+                        Publica algo nuevo
                       </p>
                     </Link>
                   </div>

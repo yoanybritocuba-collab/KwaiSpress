@@ -17,19 +17,34 @@ export default function UpdatePasswordPage() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const checkSession = async () => {
+    let active = true
+    const check = async () => {
       const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        setReady(true)
-      }
+      if (active && data.session) setReady(true)
     }
-    checkSession()
+    check()
+
+    // La sesión puede tardar en estar disponible tras abrir el enlace del correo
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active && session) setReady(true)
+    })
+
+    return () => {
+      active = false
+      listener.subscription.unsubscribe()
+    }
   }, [supabase.auth])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.auth.updateUser({ password })
 

@@ -3,26 +3,16 @@ import { CategoriasClient } from './categorias-client'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CategoriasPage() {
+export default async function CategoriasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cat?: string }>
+}) {
+  const { cat } = await searchParams
   const [categorias, productos] = await Promise.all([
     getCategoriesWithSubcategories(),
-    getPublishedProducts(50),
+    getPublishedProducts(200),
   ])
 
-  const safeProductos = Array.isArray(productos) ? productos : []
-
-  const formateados = safeProductos.map((p) => ({
-    id: p.id,
-    title: p.title,
-    price: Number(p.price),
-    oldPrice: p.oldPrice ? Number(p.oldPrice) : null,
-    imageUrl: p.imageUrl,
-    badge: p.badge,
-    rating: p.rating ? Number(p.rating) : 0,
-    reviewsCount: p.reviewsCount || 0,
-    sellerName: 'Vendedor',
-    categoryId: p.categoryId || null,
-  }))
-
-  return <CategoriasClient categorias={categorias} productos={formateados} />
+  return <CategoriasClient categorias={categorias} productos={productos} initialSlug={cat} />
 }

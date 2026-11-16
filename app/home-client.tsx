@@ -19,7 +19,7 @@ import {
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { ProductGrid } from '@/components/product/product-grid'
-import type { ProductCardData } from '@/components/product/product-card'
+import type { ProductCardData } from '@/lib/types'
 
 type SubCategory = {
   id: string
@@ -137,7 +137,7 @@ export function HomeClient({
         result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
         break
       case 'nuevos':
-        result.reverse()
+        // La lista ya llega ordenada de más reciente a más antigua
         break
     }
 

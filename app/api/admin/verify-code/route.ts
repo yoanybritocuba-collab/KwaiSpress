@@ -1,149 +1,123 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { db } from '@/lib/db'
+import { cookies } from 'next/headers'
 import { sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import {
+  ADMIN_COOKIE,
+  readAdminToken,
+  setAdminCookie,
+} from '@/lib/auth/admin-session'
+import { getCurrentUser, isAdminUser } from '@/lib/auth/roles'
 
+const MAX_FAILS = 3
+const LOCK_MINUTES = 15
+
+/**
+ * Paso 2 (opcional) del desbloqueo: código secreto guardado en
+ * admin_settings.panel_code_hash (bcrypt vía pgcrypto).
+ * Solo se puede llamar después de haber superado el paso de la contraseña.
+ */
 export async function POST(request: Request) {
   try {
-    /* 1. Verificar que el usuario está logueado */
-    const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-
-    if (!userData.user) {
-      return NextResponse.json(
-        { error: 'Debes iniciar sesión' },
-        { status: 401 },
-      )
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Debes iniciar sesión' }, { status: 401 })
+    }
+    if (!isAdminUser(user)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    /* 2. Verificar que es admin */
-    const role =
-      (userData.user.user_metadata?.role as string) ||
-      (userData.user.app_metadata?.role as string) ||
-      'customer'
-
-    if (role !== 'admin') {
+    // Exige haber pasado antes el paso de la contraseña
+    const store = await cookies()
+    if (!readAdminToken(store.get(ADMIN_COOKIE)?.value, user.id)) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'Primero introduce la contraseña del panel' },
         { status: 403 },
       )
     }
 
-    /* 3. Leer el código enviado */
-    const body = await request.json()
-    const { code } = body as { code?: string }
-
-    if (!code) {
-      return NextResponse.json(
-        { error: 'Falta el código' },
-        { status: 400 },
-      )
+    const body = (await request.json().catch(() => ({}))) as { code?: unknown }
+    if (typeof body.code !== 'string' || !body.code) {
+      return NextResponse.json({ error: 'Falta el código' }, { status: 400 })
     }
 
-    /* 4. Verificar si está bloqueado */
     const settings = await db.execute(sql`
-      SELECT 
-        panel_code_hash,
-        failed_attempts,
-        locked_until
+      SELECT panel_code_hash, failed_attempts, locked_until
       FROM admin_settings
-      WHERE user_id = ${userData.user.id}
+      WHERE user_id = ${user.id}
       LIMIT 1
     `)
 
-    if (!settings || settings.length === 0) {
-      return NextResponse.json(
-        { error: 'Configuración de admin no encontrada' },
-        { status: 500 },
-      )
+    const row = settings[0] as
+      | {
+          panel_code_hash: string | null
+          failed_attempts: number | null
+          locked_until: Date | string | null
+        }
+      | undefined
+
+    // Sin código configurado: con la contraseña basta
+    if (!row || !row.panel_code_hash) {
+      await setAdminCookie(user.id, true)
+      return NextResponse.json({ ok: true })
     }
 
-    const row = settings[0] as {
-      panel_code_hash: string | null
-      failed_attempts: number
-      locked_until: string | null
-    }
-
-    /* 5. ¿Está bloqueado? */
     if (row.locked_until) {
       const lockedUntil = new Date(row.locked_until)
-      if (lockedUntil > new Date()) {
-        const minutesLeft = Math.ceil(
-          (lockedUntil.getTime() - Date.now()) / 60000,
-        )
+      if (lockedUntil.getTime() > Date.now()) {
+        const minutesLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000)
         return NextResponse.json(
-          {
-            error: `Bloqueado. Inténtalo en ${minutesLeft} minuto(s).`,
-            locked: true,
-          },
+          { error: `Bloqueado. Inténtalo en ${minutesLeft} minuto(s).`, locked: true },
           { status: 423 },
         )
       }
     }
 
-    /* 6. Verificar el código con crypt */
     const result = await db.execute(sql`
-      SELECT crypt(${code}, ${row.panel_code_hash}) = ${row.panel_code_hash} AS correcto
+      SELECT (crypt(${body.code}, ${row.panel_code_hash}) = ${row.panel_code_hash}) AS correcto
     `)
-
-    const isCorrect = (result[0] as { correcto: boolean })?.correcto
+    const isCorrect = Boolean((result[0] as { correcto?: boolean } | undefined)?.correcto)
 
     if (!isCorrect) {
-      /* Incrementar intentos fallidos */
-      const newAttempts = (row.failed_attempts || 0) + 1
-      let lockedUntil: Date | null = null
-
-      if (newAttempts >= 3) {
-        /* Bloquear 15 minutos tras 3 intentos */
-        lockedUntil = new Date(Date.now() + 15 * 60 * 1000)
-      }
+      const newAttempts = (row.failed_attempts ?? 0) + 1
+      const shouldLock = newAttempts >= MAX_FAILS
+      // Se pasan como texto ISO: postgres.js no serializa objetos Date dentro de sql``
+      const lockedIso = shouldLock
+        ? new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString()
+        : null
 
       await db.execute(sql`
         UPDATE admin_settings
-        SET 
-          failed_attempts = ${newAttempts},
-          locked_until = ${lockedUntil},
-          updated_at = NOW()
-        WHERE user_id = ${userData.user.id}
+        SET failed_attempts = ${shouldLock ? 0 : newAttempts},
+            locked_until = ${lockedIso}::timestamptz,
+            updated_at = NOW()
+        WHERE user_id = ${user.id}
       `)
 
-      if (lockedUntil) {
+      if (shouldLock) {
         return NextResponse.json(
-          {
-            error: 'Demasiados intentos. Bloqueado 15 minutos.',
-            locked: true,
-          },
+          { error: `Demasiados intentos. Bloqueado ${LOCK_MINUTES} minutos.`, locked: true },
           { status: 423 },
         )
       }
 
-      const remaining = 3 - newAttempts
+      const remaining = MAX_FAILS - newAttempts
       return NextResponse.json(
-        {
-          error: `Código incorrecto. ${remaining} intento(s) restante(s).`,
-          remaining,
-        },
+        { error: `Código incorrecto. ${remaining} intento(s) restante(s).`, remaining },
         { status: 401 },
       )
     }
 
-    /* 7. ✅ Código correcto — resetear intentos */
     await db.execute(sql`
       UPDATE admin_settings
-      SET 
-        failed_attempts = 0,
-        locked_until = NULL,
-        last_unlock_at = NOW(),
-        updated_at = NOW()
-      WHERE user_id = ${userData.user.id}
+      SET failed_attempts = 0, locked_until = NULL, last_unlock_at = NOW(), updated_at = NOW()
+      WHERE user_id = ${user.id}
     `)
 
+    await setAdminCookie(user.id, true)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Error en verify-code:', err)
-    return NextResponse.json(
-      { error: 'Error del servidor' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 })
   }
 }

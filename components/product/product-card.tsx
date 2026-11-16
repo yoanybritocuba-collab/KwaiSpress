@@ -4,23 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Heart, ShoppingBag, Star } from 'lucide-react'
 import { useCart } from '@/components/cart/cart-context'
+import type { ProductCardData } from '@/lib/types'
 
-export type ProductCardData = {
-  id: string
-  title: string
-  price: number
-  oldPrice?: number | null
-  imageUrl: string | null
-  imageUrls?: string[]
-  badge?: string | null
-  rating?: number
-  reviewsCount?: number
-  sellerId?: string
-  sellerName?: string
-  sellerWhatsapp?: string
-  categoryName?: string
-  categoryId?: string | null
-}
+export type { ProductCardData }
 
 export function ProductCard({ product }: { product: ProductCardData }) {
   const [liked, setLiked] = useState(false)
@@ -55,10 +41,16 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   const mainImage = product.imageUrl || product.imageUrls?.[0] || null
 
   return (
-    <Link
-      href={`/producto/${product.id}`}
+    <article
       className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ffd700]/40 hover:shadow-lg hover:shadow-[#ffd700]/5"
     >
+      {/* Enlace que cubre toda la tarjeta (evita botones dentro de un <a>) */}
+      <Link
+        href={`/producto/${product.id}`}
+        aria-label={product.title}
+        className="absolute inset-0 z-10 rounded-xl"
+      />
+
       {/* Imagen */}
       <div className="relative aspect-square overflow-hidden bg-[var(--background)]">
         {mainImage ? (
@@ -95,7 +87,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             e.stopPropagation()
             setLiked(!liked)
           }}
-          className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/95 text-slate-700 opacity-0 shadow transition-all group-hover:opacity-100 hover:scale-110 hover:bg-[#ffd700] hover:text-black"
+          className="absolute right-1.5 top-1.5 z-20 grid size-7 place-items-center rounded-full bg-white/95 text-slate-700 opacity-100 shadow transition-all sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 hover:bg-[#ffd700] hover:text-black"
           aria-label={liked ? 'Quitar de favoritos' : 'Añadir a favoritos'}
         >
           <Heart
@@ -111,12 +103,12 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           {product.title}
         </h3>
 
-        {product.rating && product.rating > 0 && (
+        {(product.rating ?? 0) > 0 && (
           <div className="mt-1 flex items-center gap-1">
             <Star size={10} className="fill-[#ffd700] text-[#ffd700]" />
             <span className="text-[10px] text-[var(--muted-foreground)]">
-              {product.rating.toFixed(1)}
-              {product.reviewsCount && product.reviewsCount > 0 && (
+              {(product.rating ?? 0).toFixed(1)}
+              {(product.reviewsCount ?? 0) > 0 && (
                 <span> ({product.reviewsCount})</span>
               )}
             </span>
@@ -137,13 +129,13 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
           <button
             onClick={handleAddToCart}
-            className="grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] transition-all hover:scale-110 hover:border-[#3ecf8e] hover:bg-[#3ecf8e] hover:text-black"
+            className="relative z-20 grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] transition-all hover:scale-110 hover:border-[#3ecf8e] hover:bg-[#3ecf8e] hover:text-black"
             aria-label="Añadir al carrito"
           >
             <ShoppingBag size={13} />
           </button>
         </div>
       </div>
-    </Link>
+    </article>
   )
 }

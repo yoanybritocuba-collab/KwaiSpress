@@ -1,19 +1,39 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { safeNextPath } from '@/lib/utils'
 import { Zap, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+function traducir(msg: string) {
+  if (/invalid login credentials/i.test(msg)) return 'Email o contraseña incorrectos'
+  if (/email not confirmed/i.test(msg)) return 'Debes confirmar tu email antes de entrar. Revisa tu correo.'
+  if (/rate limit|too many/i.test(msg)) return 'Demasiados intentos. Espera unos minutos.'
+  return msg
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const params = useSearchParams()
+  const next = safeNextPath(params.get('next'), '/')
   const supabase = createClient()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    params.get('error') === 'enlace' ? 'El enlace no es válido o ha caducado. Solicítalo de nuevo.' : '',
+  )
   const [showPassword, setShowPassword] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -27,12 +47,12 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError(error.message)
+      setError(traducir(error.message))
       setLoading(false)
       return
     }
 
-    router.push('/')
+    router.push(next)
     router.refresh()
   }
 

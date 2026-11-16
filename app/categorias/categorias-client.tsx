@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { ProductGrid } from '@/components/product/product-grid'
+import type { ProductCardData } from '@/lib/types'
 
 type Category = {
   id: string
@@ -22,31 +23,28 @@ type Category = {
   subcategories?: Category[]
 }
 
-type Producto = {
-  id: string
-  title: string
-  price: number
-  oldPrice: number | null
-  imageUrl: string | null
-  badge: string | null
-  rating: number
-  reviewsCount: number
-  sellerName: string
-  categoryId?: string | null
-}
-
 export function CategoriasClient({
   categorias,
   productos,
+  initialSlug,
 }: {
   categorias: Category[]
-  productos: (Producto & { categoryId: string | null })[]
+  productos: ProductCardData[]
+  initialSlug?: string
 }) {
   const [categoriaAbierta, setCategoriaAbierta] = useState(false)
   const [categoriaActiva, setCategoriaActiva] = useState<{
     id: string
     nombre: string
-  } | null>(null)
+  } | null>(() => {
+    if (!initialSlug) return null
+    for (const c of categorias) {
+      if (c.slug === initialSlug) return { id: c.id, nombre: c.name }
+      const sub = c.subcategories?.find((x) => x.slug === initialSlug)
+      if (sub) return { id: sub.id, nombre: sub.name }
+    }
+    return null
+  })
   const [seleccionTemporal, setSeleccionTemporal] = useState<string | null>(null)
 
   const normales = categorias.filter((c) => !c.isAdult)

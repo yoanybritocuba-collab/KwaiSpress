@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
-import { getProductWithSeller } from '@/lib/db/queries'
+import { getPublicProduct } from '@/lib/db/queries'
+import { isUuid } from '@/lib/utils'
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const resultado = await getProductWithSeller(id)
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  }
 
+  const resultado = await getPublicProduct(id)
   if (!resultado) {
     return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   }

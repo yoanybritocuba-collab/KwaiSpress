@@ -15,22 +15,35 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [needsConfirm, setNeedsConfirm] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signUp({
-      email,
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
       password,
       options: {
-        data: { name },
+        data: { name: name.trim() },
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/perfil`,
       },
     })
 
     if (error) {
-      setError(error.message)
+      setError(
+        /already registered/i.test(error.message)
+          ? 'Ya existe una cuenta con ese email'
+          : error.message,
+      )
+      setLoading(false)
+      return
+    }
+
+    // Con la confirmación de email activada no hay sesión todavía
+    if (!data.session) {
+      setNeedsConfirm(true)
       setLoading(false)
       return
     }
@@ -101,7 +114,14 @@ export default function RegisterPage() {
               Regístrate para comprar o vender en la plataforma.
             </p>
 
-            <form onSubmit={handleRegister} className="mt-8 space-y-4">
+            {needsConfirm && (
+              <div role="status" className="mt-8 rounded-xl border border-[#10b77f]/30 bg-[#10b77f]/[0.06] px-4 py-4 text-sm text-[#10b77f]">
+                Te hemos enviado un email a <strong>{email}</strong>. Confirma tu cuenta
+                desde el enlace para poder iniciar sesión.
+              </div>
+            )}
+
+            <form hidden={needsConfirm} onSubmit={handleRegister} className="mt-8 space-y-4">
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">
                   Nombre completo

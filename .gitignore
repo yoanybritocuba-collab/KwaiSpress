@@ -6,20 +6,18 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 
-# Environment variables
+# Variables de entorno (secretos)
+.env
 .env*.local
 
-# Common ignores
+# Dependencias y builds
 node_modules
 .next/
+out/
+*.tsbuildinfo
 .DS_Store
-# Backups
-*.backup/
-app.backup/
-components.backup/
-lib.backup/
 
-# Backups temporales
+# Backups
 *.backup/
 app.backup/
 components.backup/

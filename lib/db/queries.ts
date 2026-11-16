@@ -1,6 +1,8 @@
 import { db } from './index'
 import { categories, products, sellers, productOffers } from './schema'
-import { eq, and, desc, asc, sql, or, ilike, isNull, inArray } from 'drizzle-orm'
+import { eq, and, desc, asc, sql, or, ilike, isNull, ne, isNotNull } from 'drizzle-orm'
+import { escapeLike } from '@/lib/utils'
+import type { ProductCardData } from '@/lib/types'
 
 /* ============================================================
    CATEGORÍAS
@@ -49,103 +51,149 @@ export async function getCategories() {
   return getMainCategories()
 }
 
+/** Todas las categorías activas (principales y subcategorías) en lista plana. */
+export async function getAllActiveCategories() {
+  return db
+    .select()
+    .from(categories)
+    .where(eq(categories.active, true))
+    .orderBy(asc(categories.order))
+}
+
+/* ============================================================
+   TARJETAS DE PRODUCTO (con datos del vendedor)
+   Solo productos publicados de vendedores aprobados.
+   ============================================================ */
+
+const cardColumns = {
+  id: products.id,
+  title: products.title,
+  price: products.price,
+  oldPrice: products.oldPrice,
+  imageUrl: products.imageUrl,
+  badge: products.badge,
+  rating: products.rating,
+  reviewsCount: products.reviewsCount,
+  categoryId: products.categoryId,
+  sellerId: sellers.id,
+  sellerName: sellers.storeName,
+  sellerWhatsapp: sellers.whatsapp,
+}
+
+type CardRow = {
+  id: string
+  title: string
+  price: string
+  oldPrice: string | null
+  imageUrl: string | null
+  badge: string | null
+  rating: string | null
+  reviewsCount: number
+  categoryId: string | null
+  sellerId: string
+  sellerName: string
+  sellerWhatsapp: string | null
+}
+
+function toCard(r: CardRow): ProductCardData {
+  return {
+    id: r.id,
+    title: r.title,
+    price: Number(r.price),
+    oldPrice: r.oldPrice ? Number(r.oldPrice) : null,
+    imageUrl: r.imageUrl,
+    badge: r.badge,
+    rating: r.rating ? Number(r.rating) : 0,
+    reviewsCount: r.reviewsCount || 0,
+    categoryId: r.categoryId,
+    sellerId: r.sellerId,
+    sellerName: r.sellerName,
+    sellerWhatsapp: r.sellerWhatsapp ?? '',
+  }
+}
+
+const visible = and(
+  eq(products.status, 'published'),
+  eq(sellers.status, 'approved'),
+)
+
+function cardsQuery() {
+  return db
+    .select(cardColumns)
+    .from(products)
+    .innerJoin(sellers, eq(products.sellerId, sellers.id))
+}
+
 /* ============================================================
    PRODUCTOS
    ============================================================ */
 
-export async function getPublishedProducts(limit = 100) {
-  return db
-    .select()
-    .from(products)
-    .where(eq(products.status, 'published'))
+export async function getPublishedProducts(limit = 100): Promise<ProductCardData[]> {
+  const rows = await cardsQuery()
+    .where(visible)
     .orderBy(desc(products.createdAt))
     .limit(limit)
+  return rows.map(toCard)
 }
 
-export async function getProductsByCategory(categorySlug: string) {
-  const category = await getCategoryBySlug(categorySlug)
-  if (!category) return []
+export async function searchProducts(
+  query: string,
+  limit = 60,
+): Promise<ProductCardData[]> {
+  const q = query.trim().slice(0, 80)
+  if (!q) return []
+  const pattern = `%${escapeLike(q)}%`
 
-  const subs = await getSubcategories(category.id)
-  const ids = [category.id, ...subs.map((s) => s.id)]
-
-  return db
-    .select()
-    .from(products)
-    .where(
-      and(eq(products.status, 'published'), inArray(products.categoryId, ids)),
-    )
-    .orderBy(desc(products.createdAt))
-}
-
-export async function getProductWithSeller(productId: string) {
-  const prodRows = await db
-    .select()
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1)
-
-  if (!prodRows[0]) return null
-
-  const product = prodRows[0]
-
-  const sellerRows = product.sellerId
-    ? await db
-        .select()
-        .from(sellers)
-        .where(eq(sellers.id, product.sellerId))
-        .limit(1)
-    : []
-
-  return {
-    product,
-    seller: sellerRows[0] || null,
-  }
-}
-
-export async function searchProducts(query: string, limit = 30) {
-  if (!query.trim()) return []
-
-  return db
-    .select()
-    .from(products)
+  const rows = await cardsQuery()
     .where(
       and(
-        eq(products.status, 'published'),
-        or(
-          ilike(products.title, `%${query}%`),
-          ilike(products.description, `%${query}%`),
-        ),
+        visible,
+        or(ilike(products.title, pattern), ilike(products.description, pattern)),
       ),
     )
+    .orderBy(desc(products.createdAt))
     .limit(limit)
+  return rows.map(toCard)
 }
 
-export async function getSimilarProducts(productId: string, limit = 6) {
+export async function getSimilarProducts(
+  productId: string,
+  limit = 6,
+): Promise<ProductCardData[]> {
   const prod = await db
     .select({ categoryId: products.categoryId })
     .from(products)
     .where(eq(products.id, productId))
     .limit(1)
 
-  if (!prod[0]?.categoryId) return []
+  const categoryId = prod[0]?.categoryId
+  if (!categoryId) return []
 
-  return db
-    .select()
-    .from(products)
+  const rows = await cardsQuery()
     .where(
-      and(
-        eq(products.status, 'published'),
-        eq(products.categoryId, prod[0].categoryId),
-        sql`${products.id} != ${productId}`,
-      ),
+      and(visible, eq(products.categoryId, categoryId), ne(products.id, productId)),
     )
+    .orderBy(desc(products.createdAt))
     .limit(limit)
+  return rows.map(toCard)
 }
 
-export async function isAdultCategory(slug: string) {
-  const category = await getCategoryBySlug(slug)
-  return category?.isAdult === true
+export async function getSellerProducts(
+  sellerId: string,
+  excludeId?: string,
+  limit = 60,
+): Promise<ProductCardData[]> {
+  const rows = await cardsQuery()
+    .where(
+      and(
+        visible,
+        eq(products.sellerId, sellerId),
+        excludeId ? ne(products.id, excludeId) : undefined,
+      ),
+    )
+    .orderBy(desc(products.createdAt))
+    .limit(limit)
+  return rows.map(toCard)
 }
 
 /* ============================================================
@@ -153,97 +201,115 @@ export async function isAdultCategory(slug: string) {
    ============================================================ */
 
 /** Productos con mayor descuento (para "Ofertas del día") */
-export async function getOfertasDelDia(limit = 8) {
-  return db
-    .select()
-    .from(products)
+export async function getOfertasDelDia(limit = 8): Promise<ProductCardData[]> {
+  const rows = await cardsQuery()
     .where(
       and(
-        eq(products.status, 'published'),
-        sql`${products.oldPrice} IS NOT NULL`,
+        visible,
+        isNotNull(products.oldPrice),
         sql`${products.oldPrice} > ${products.price}`,
       ),
     )
     .orderBy(
-      desc(
-        sql`(${products.oldPrice} - ${products.price}) / ${products.oldPrice}`,
-      ),
+      desc(sql`(${products.oldPrice} - ${products.price}) / ${products.oldPrice}`),
     )
     .limit(limit)
+  return rows.map(toCard)
 }
 
-/** Productos nuevos (últimos 30 días) */
-export async function getNovedades(limit = 8) {
-  return db
-    .select()
-    .from(products)
-    .where(eq(products.status, 'published'))
-    .orderBy(desc(products.createdAt))
-    .limit(limit)
+/** Productos más recientes */
+export async function getNovedades(limit = 8): Promise<ProductCardData[]> {
+  return getPublishedProducts(limit)
 }
 
 /** Productos más vendidos (más reseñas) */
-export async function getMasVendidos(limit = 8) {
-  return db
-    .select()
-    .from(products)
-    .where(eq(products.status, 'published'))
-    .orderBy(desc(products.reviewsCount))
+export async function getMasVendidos(limit = 8): Promise<ProductCardData[]> {
+  const rows = await cardsQuery()
+    .where(visible)
+    .orderBy(desc(products.reviewsCount), desc(products.createdAt))
     .limit(limit)
+  return rows.map(toCard)
 }
 
 /* ============================================================
    PRODUCTO COMPLETO CON OFERTAS Y VENDEDORES
    ============================================================ */
 
-export async function getProductFull(productId: string) {
-  /* Producto */
+export async function getProductFull(
+  productId: string,
+  opts: { includeUnpublished?: boolean } = {},
+) {
   const prodRows = await db
     .select()
     .from(products)
     .where(eq(products.id, productId))
     .limit(1)
 
-  if (!prodRows[0]) return null
   const product = prodRows[0]
+  if (!product) return null
+  if (!opts.includeUnpublished && product.status !== 'published') return null
 
-  /* Vendedor original */
   const sellerRows = product.sellerId
-    ? await db
-        .select()
-        .from(sellers)
-        .where(eq(sellers.id, product.sellerId))
-        .limit(1)
+    ? await db.select().from(sellers).where(eq(sellers.id, product.sellerId)).limit(1)
     : []
+  const seller = sellerRows[0] || null
 
-  /* Categoría */
+  // Los productos de tiendas pendientes o suspendidas no se muestran
+  if (!opts.includeUnpublished && seller?.status !== 'approved') return null
+
   const catRows = product.categoryId
-    ? await db
-        .select()
-        .from(categories)
-        .where(eq(categories.id, product.categoryId))
-        .limit(1)
+    ? await db.select().from(categories).where(eq(categories.id, product.categoryId)).limit(1)
     : []
 
-  /* Todas las ofertas de este producto con sus vendedores */
+  /* Todas las ofertas activas de este producto (solo vendedores aprobados) */
   const ofertas = await db
-    .select({
-      offer: productOffers,
-      seller: sellers,
-    })
+    .select({ offer: productOffers, seller: sellers })
     .from(productOffers)
-    .leftJoin(sellers, eq(productOffers.sellerId, sellers.id))
+    .innerJoin(sellers, eq(productOffers.sellerId, sellers.id))
     .where(
       and(
         eq(productOffers.productId, productId),
         eq(productOffers.active, true),
+        eq(productOffers.approved, true),
+        eq(sellers.status, 'approved'),
       ),
     )
 
   return {
     product,
-    seller: sellerRows[0] || null,
+    seller,
     category: catRows[0] || null,
     ofertas,
+  }
+}
+
+/** Versión pública y segura para la API (sin datos internos del vendedor). */
+export async function getPublicProduct(productId: string) {
+  const full = await getProductFull(productId)
+  if (!full) return null
+  const { product, seller } = full
+  return {
+    product: {
+      id: product.id,
+      title: product.title,
+      description: product.description,
+      price: product.price,
+      oldPrice: product.oldPrice,
+      imageUrl: product.imageUrl,
+      images: product.images,
+      badge: product.badge,
+      rating: product.rating,
+      reviewsCount: product.reviewsCount,
+      categoryId: product.categoryId,
+    },
+    seller: seller
+      ? {
+          id: seller.id,
+          storeName: seller.storeName,
+          slug: seller.slug,
+          location: seller.location,
+          verified: seller.verified,
+        }
+      : null,
   }
 }

@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, MapPin, Package, Star } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { db } from '@/lib/db'
-import { sellers, products } from '@/lib/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { sellers } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { getSellerProducts } from '@/lib/db/queries'
+import { getCurrentUser } from '@/lib/auth/roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +26,13 @@ export default async function VendedorPage({
   const seller = sellerRows[0]
   if (!seller) notFound()
 
-  const productos = await db
-    .select()
-    .from(products)
-    .where(and(eq(products.sellerId, seller.id), eq(products.status, 'published')))
-    .orderBy(desc(products.createdAt))
+  // Las tiendas pendientes o suspendidas solo las ve su propietario
+  if (seller.status !== 'approved') {
+    const user = await getCurrentUser()
+    if (user?.id !== seller.userId) notFound()
+  }
+
+  const productos = await getSellerProducts(seller.id)
 
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">

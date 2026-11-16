@@ -1,72 +1,52 @@
 import { db } from './index'
 import { products, sellers, categories, users } from './schema'
-import { eq, desc, sql, and, or, ilike } from 'drizzle-orm'
+import { eq, desc, sql, or, ilike, asc } from 'drizzle-orm'
+import { escapeLike } from '@/lib/utils'
+
+const count = sql<number>`count(*)::int`
 
 /* ============================================================
    ESTADÍSTICAS
    ============================================================ */
 
 export async function getAdminStats() {
+  const empty = {
+    sellersApproved: 0,
+    sellersPending: 0,
+    sellersSuspended: 0,
+    productsTotal: 0,
+    productsPublished: 0,
+    productsPending: 0,
+    categoriesTotal: 0,
+    usersTotal: 0,
+    failed: true,
+  }
+
   try {
-    const [sellersApproved] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sellers)
-      .where(eq(sellers.status, 'approved'))
+    const [sellerRows, productRows, [categoriesTotal], [usersTotal]] = await Promise.all([
+      db.select({ status: sellers.status, n: count }).from(sellers).groupBy(sellers.status),
+      db.select({ status: products.status, n: count }).from(products).groupBy(products.status),
+      db.select({ n: count }).from(categories),
+      db.select({ n: count }).from(users),
+    ])
 
-    const [sellersPending] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sellers)
-      .where(eq(sellers.status, 'pending'))
-
-    const [sellersSuspended] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sellers)
-      .where(eq(sellers.status, 'suspended'))
-
-    const [productsTotal] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(products)
-
-    const [productsPublished] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(products)
-      .where(eq(products.status, 'published'))
-
-    const [productsPending] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(products)
-      .where(eq(products.status, 'pending'))
-
-    const [categoriesTotal] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(categories)
-
-    const [usersTotal] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(users)
+    const s = (st: string) => sellerRows.find((r) => r.status === st)?.n ?? 0
+    const p = (st: string) => productRows.find((r) => r.status === st)?.n ?? 0
 
     return {
-      sellersApproved: sellersApproved?.count || 0,
-      sellersPending: sellersPending?.count || 0,
-      sellersSuspended: sellersSuspended?.count || 0,
-      productsTotal: productsTotal?.count || 0,
-      productsPublished: productsPublished?.count || 0,
-      productsPending: productsPending?.count || 0,
-      categoriesTotal: categoriesTotal?.count || 0,
-      usersTotal: usersTotal?.count || 0,
+      sellersApproved: s('approved'),
+      sellersPending: s('pending'),
+      sellersSuspended: s('suspended'),
+      productsTotal: productRows.reduce((a, r) => a + r.n, 0),
+      productsPublished: p('published'),
+      productsPending: p('pending'),
+      categoriesTotal: categoriesTotal?.n ?? 0,
+      usersTotal: usersTotal?.n ?? 0,
+      failed: false,
     }
   } catch (error) {
-    console.error('Error stats:', error)
-    return {
-      sellersApproved: 0,
-      sellersPending: 0,
-      sellersSuspended: 0,
-      productsTotal: 0,
-      productsPublished: 0,
-      productsPending: 0,
-      categoriesTotal: 0,
-      usersTotal: 0,
-    }
+    console.error('Error cargando estadísticas del panel:', error)
+    return empty
   }
 }
 
@@ -108,16 +88,21 @@ export async function getLatestSellers(limit = 5) {
    ============================================================ */
 
 export async function getAllSellers() {
-  return db.select().from(sellers).orderBy(desc(sellers.createdAt))
-}
-
-export async function getSellersByStatus(
-  status: 'pending' | 'approved' | 'suspended',
-) {
   return db
-    .select()
+    .select({
+      id: sellers.id,
+      storeName: sellers.storeName,
+      slug: sellers.slug,
+      location: sellers.location,
+      whatsapp: sellers.whatsapp,
+      status: sellers.status,
+      verified: sellers.verified,
+      createdAt: sellers.createdAt,
+      email: users.email,
+      productsCount: sql<number>`(select count(*)::int from ${products} where ${products.sellerId} = ${sellers.id})`,
+    })
     .from(sellers)
-    .where(eq(sellers.status, status))
+    .leftJoin(users, eq(users.id, sellers.userId))
     .orderBy(desc(sellers.createdAt))
 }
 
@@ -125,35 +110,73 @@ export async function getSellersByStatus(
    PRODUCTOS
    ============================================================ */
 
-export async function getAllProducts(limit = 100) {
+const adminProductColumns = {
+  id: products.id,
+  title: products.title,
+  price: products.price,
+  stock: products.stock,
+  status: products.status,
+  imageUrl: products.imageUrl,
+  createdAt: products.createdAt,
+  sellerId: products.sellerId,
+  sellerName: sellers.storeName,
+}
+
+export async function getAllProducts(limit = 200) {
   return db
-    .select()
+    .select(adminProductColumns)
     .from(products)
+    .leftJoin(sellers, eq(products.sellerId, sellers.id))
+    .orderBy(desc(products.createdAt))
+    .limit(limit)
+}
+
+export async function getProductsBySeller(sellerId: string, limit = 200) {
+  return db
+    .select(adminProductColumns)
+    .from(products)
+    .leftJoin(sellers, eq(products.sellerId, sellers.id))
+    .where(eq(products.sellerId, sellerId))
     .orderBy(desc(products.createdAt))
     .limit(limit)
 }
 
 export async function searchAllProducts(query: string) {
-  if (!query.trim()) return getAllProducts()
+  const q = query.trim()
+  if (!q) return getAllProducts()
+  const pattern = `%${escapeLike(q)}%`
   return db
-    .select()
+    .select(adminProductColumns)
     .from(products)
-    .where(
-      or(
-        ilike(products.title, `%${query}%`),
-        ilike(products.description, `%${query}%`),
-      ),
-    )
+    .leftJoin(sellers, eq(products.sellerId, sellers.id))
+    .where(or(ilike(products.title, pattern), ilike(products.description, pattern)))
     .orderBy(desc(products.createdAt))
-    .limit(100)
+    .limit(200)
 }
 
 /* ============================================================
    CATEGORÍAS
    ============================================================ */
 
+export async function getAllCategoriesWithCounts() {
+  return db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      slug: categories.slug,
+      icon: categories.icon,
+      parentId: categories.parentId,
+      order: categories.order,
+      active: categories.active,
+      isAdult: categories.isAdult,
+      productsCount: sql<number>`(select count(*)::int from ${products} where ${products.categoryId} = ${categories.id})`,
+    })
+    .from(categories)
+    .orderBy(asc(categories.order), asc(categories.name))
+}
+
 export async function getAllCategories() {
-  return db.select().from(categories).orderBy(categories.order)
+  return db.select().from(categories).orderBy(asc(categories.order))
 }
 
 /* ============================================================
