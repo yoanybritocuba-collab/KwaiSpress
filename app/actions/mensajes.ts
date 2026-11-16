@@ -71,8 +71,7 @@ export async function iniciarChatInvitado(
 
     if (seller.userId === customerId) return { error: 'No puedes escribirte a ti mismo.' }
 
-    // Usuarios con sesión: se reutiliza su chat. Invitados: chat nuevo (nunca se
-    // reutiliza por correo, para que nadie pueda entrar en el chat de otro).
+    // Usuarios con sesión: se reutiliza su chat.
     if (user) {
       const [existing] = await db
         .select({ id: chats.id })
@@ -88,7 +87,7 @@ export async function iniciarChatInvitado(
       .values({ productId, sellerId, customerId, guestName: name, guestEmail: email, guestToken })
       .returning()
 
-    // Primer mensaje automático: el vendedor ve enseguida por qué producto preguntan
+    // Primer mensaje automático
     await db.insert(messages).values({
       chatId: chat.id,
       senderId: customerId,

@@ -130,7 +130,7 @@ export const productOffers = pgTable('product_offers', {
 })
 
 /* ============================================================
-   CHATS (Modificado para Invitados)
+   CHATS
    ============================================================ */
 
 export const chats = pgTable('chats', {
@@ -140,6 +140,7 @@ export const chats = pgTable('chats', {
   sellerId: uuid('seller_id').references(() => sellers.id, { onDelete: 'cascade' }).notNull(),
   guestName: text('guest_name'),
   guestEmail: text('guest_email'),
+  guestToken: text('guest_token'), // <--- AÑADIDO
   lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
