@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/roles'
 import { db } from '@/lib/db'
 import { chats, messages, users, products, sellers } from '@/lib/db/schema'
@@ -13,7 +12,18 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   const { id } = await searchParams
   const user = await getCurrentUser()
   
-  if (!user && !id) redirect('/login?next=/chat')
+  // Si no hay usuario NI hay id de chat, mostramos un mensaje en vez de redirigir
+  if (!user && !id) {
+    return (
+      <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex items-center justify-center">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold mb-4">Acceso al chat</h1>
+          <p className="text-white/60 mb-6">Para ver tus conversaciones, necesitas iniciar sesión o acceder desde un producto.</p>
+          <Link href="/login" className="bg-[#3ecf8e] text-black px-6 py-3 rounded-xl font-bold">Iniciar sesión</Link>
+        </div>
+      </main>
+    )
+  }
 
   const userId = user?.id
   const sellerRows = userId ? await db.select().from(sellers).where(eq(sellers.userId, userId)).limit(1) : []
@@ -63,7 +73,6 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
 
     if (chatRows[0]) {
       activeChat = chatRows[0]
-      // Si no hay mensajes, devolvemos un array vacío
       const msgs = await db.select()
         .from(messages)
         .where(eq(messages.chatId, id))
