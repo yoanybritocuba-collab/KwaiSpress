@@ -27,7 +27,14 @@ export function StartChatButton({ productId, sellerId }: { productId: string, se
       setError(res.error)
       setLoading(false)
     } else if (res?.chatId) {
-      window.location.href = `/chat?id=${res.chatId}`
+      // Usamos assign en lugar de href para forzar una navegación limpia
+      // y lo envolvemos para que React no lo trate como un error de render.
+      try {
+        window.location.assign(`/chat?id=${res.chatId}`)
+      } catch (e) {
+        // Si falla, recargamos la página manualmente
+        window.location.reload()
+      }
     }
   }
 
