@@ -3,7 +3,6 @@ import { Inter, Playfair_Display } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import { ThemeProvider, themeInitScript } from '@/components/theme/theme-provider'
 import { CartProvider } from '@/components/cart/cart-context'
-import { CartDrawer } from '@/components/cart/cart-drawer'
 import { FloatingButtons } from '@/components/layout/floating-buttons'
 import './globals.css'
 
@@ -63,7 +62,6 @@ export default function RootLayout({
         <ThemeProvider>
           <CartProvider>
             {children}
-            <CartDrawer />
             <FloatingButtons />
           </CartProvider>
           {process.env.NODE_ENV === 'production' && <Analytics />}

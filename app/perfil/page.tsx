@@ -182,8 +182,9 @@ export default function PerfilPage() {
           {tab === 'comprar' && (
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div
-                  className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
+                <Link
+                  href="/chat"
+                  className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#3ecf8e]/40"
                 >
                   <MessageCircle
                     size={20}
@@ -193,22 +194,18 @@ export default function PerfilPage() {
                   <p className="mt-1 text-xs text-white/50">
                     Conversaciones con vendedores
                   </p>
-                  <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
-</div>
+                </Link>
 
-                <div
-                  className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
-                >
-                  <Heart
-                    size={20}
-                    className="text-[#10b77f] transition-colors group-hover:text-[#d4af37]"
-                  />
+                <div className="cursor-not-allowed rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 opacity-70">
+                  <Heart size={20} className="text-[#10b77f]" />
                   <h3 className="mt-4 font-bold">Mis favoritos</h3>
                   <p className="mt-1 text-xs text-white/50">
                     Productos que has guardado
                   </p>
-                  <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
-</div>
+                  <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                    Próximamente
+                  </span>
+                </div>
               </div>
 
               <div className="rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5">
@@ -327,8 +324,9 @@ export default function PerfilPage() {
                       </p>
                     </Link>
 
-                    <div
-                      className="rounded-2xl opacity-70 cursor-not-allowed border border-white/[0.06] bg-[#0a0a0a] p-5"
+                    <Link
+                      href="/chat"
+                      className="group rounded-2xl border border-white/[0.06] bg-[#0a0a0a] p-5 transition-colors hover:border-[#3ecf8e]/40"
                     >
                       <MessageCircle
                         size={20}
@@ -338,8 +336,7 @@ export default function PerfilPage() {
                       <p className="mt-1 text-xs text-white/50">
                         Conversaciones con clientes
                       </p>
-                      <span className="mt-3 inline-block rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">Próximamente</span>
-</div>
+                    </Link>
 
                     <Link
                       href={`/vendedor/${seller?.slug}`}

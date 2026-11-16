@@ -1,141 +1,85 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import { Heart, ShoppingBag, Star } from 'lucide-react'
-import { useCart } from '@/components/cart/cart-context'
+import { MessageCircle, Star } from 'lucide-react'
 import type { ProductCardData } from '@/lib/types'
 
-export type { ProductCardData }
+export type { ProductCardData } from '@/lib/types'
 
-export function ProductCard({ product }: { product: ProductCardData }) {
-  const [liked, setLiked] = useState(false)
-  const { addItem } = useCart()
-
-  const hasDiscount =
-    product.oldPrice && Number(product.oldPrice) > Number(product.price)
-
-  const discountPercent = hasDiscount
-    ? Math.round(
-        ((Number(product.oldPrice) - Number(product.price)) /
-          Number(product.oldPrice)) *
-          100,
-      )
+export function ProductCard({ product: p }: { product: ProductCardData }) {
+  const tieneOferta = p.oldPrice != null && p.oldPrice > p.price
+  const descuento = tieneOferta
+    ? Math.round(((p.oldPrice! - p.price) / p.oldPrice!) * 100)
     : 0
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    addItem({
-      id: product.id,
-      title: product.title,
-      price: Number(product.price),
-      imageUrl: product.imageUrl,
-      sellerId: product.sellerId || '',
-      sellerName: product.sellerName || 'Vendedor',
-      sellerWhatsapp: product.sellerWhatsapp || '',
-    })
-  }
-
-  const mainImage = product.imageUrl || product.imageUrls?.[0] || null
+  const rating = p.rating ?? 0
 
   return (
-    <article
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ffd700]/40 hover:shadow-lg hover:shadow-[#ffd700]/5"
+    <Link
+      href={`/producto/${p.id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] transition-all duration-300 hover:-translate-y-1 hover:border-[#ffd700]/40 hover:shadow-[0_14px_40px_-14px_rgba(255,215,0,0.3)]"
     >
-      {/* Enlace que cubre toda la tarjeta (evita botones dentro de un <a>) */}
-      <Link
-        href={`/producto/${product.id}`}
-        aria-label={product.title}
-        className="absolute inset-0 z-10 rounded-xl"
-      />
-
-      {/* Imagen */}
       <div className="relative aspect-square overflow-hidden bg-[var(--background)]">
-        {mainImage ? (
+        {p.imageUrl ? (
           <img
-            src={mainImage}
-            alt={product.title}
+            src={p.imageUrl}
+            alt={p.title}
             loading="lazy"
-            className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="size-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className="grid size-full place-items-center text-3xl text-[var(--muted-foreground)]/20">
+          <div className="grid size-full place-items-center text-4xl text-[var(--muted-foreground)]/25">
             📦
           </div>
         )}
 
-        {/* Badge descuento */}
-        {hasDiscount && (
-          <span className="absolute left-1.5 top-1.5 rounded-md bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
-            -{discountPercent}%
+        {tieneOferta ? (
+          <span className="absolute left-2 top-2 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-lg">
+            -{descuento}%
           </span>
+        ) : (
+          p.badge && (
+            <span className="absolute left-2 top-2 rounded-full bg-black/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#ffd700] backdrop-blur-sm">
+              {p.badge}
+            </span>
+          )
         )}
-
-        {/* Badge personalizado */}
-        {!hasDiscount && product.badge && (
-          <span className="absolute left-1.5 top-1.5 rounded-md bg-black/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#ffd700] backdrop-blur-sm">
-            {product.badge}
-          </span>
-        )}
-
-        {/* Favorito */}
-        <button
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            setLiked(!liked)
-          }}
-          className="absolute right-1.5 top-1.5 z-20 grid size-7 place-items-center rounded-full bg-white/95 text-slate-700 opacity-100 shadow transition-all sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 hover:bg-[#ffd700] hover:text-black"
-          aria-label={liked ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-        >
-          <Heart
-            size={12}
-            className={liked ? 'fill-rose-500 text-rose-500' : ''}
-          />
-        </button>
       </div>
 
-      {/* Info */}
-      <div className="flex flex-1 flex-col p-2.5">
-        <h3 className="line-clamp-2 min-h-8 text-[12px] font-medium leading-4 text-[var(--foreground)] transition-colors group-hover:text-[#ffd700]">
-          {product.title}
+      <div className="flex flex-1 flex-col p-3">
+        {p.sellerName && (
+          <p className="truncate text-[11px] font-medium text-[var(--muted-foreground)]">
+            {p.sellerName}
+          </p>
+        )}
+
+        <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] font-sans text-sm font-medium leading-snug tracking-normal">
+          {p.title}
         </h3>
 
-        {(product.rating ?? 0) > 0 && (
-          <div className="mt-1 flex items-center gap-1">
-            <Star size={10} className="fill-[#ffd700] text-[#ffd700]" />
-            <span className="text-[10px] text-[var(--muted-foreground)]">
-              {(product.rating ?? 0).toFixed(1)}
-              {(product.reviewsCount ?? 0) > 0 && (
-                <span> ({product.reviewsCount})</span>
-              )}
+        {rating > 0 && (
+          <div className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
+            <Star size={11} className="fill-[#ffd700] text-[#ffd700]" />
+            <span className="font-medium text-[var(--foreground)]">
+              {rating.toFixed(1)}
             </span>
+            {!!p.reviewsCount && <span>({p.reviewsCount})</span>}
           </div>
         )}
 
-        <div className="mt-auto flex items-end justify-between gap-1.5 pt-2">
-          <div className="flex flex-col min-w-0">
-            <span className="font-display text-sm font-bold text-[var(--foreground)] truncate">
-              {Number(product.price).toFixed(2)} €
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
+          <span className="font-display text-lg font-bold">
+            {p.price.toFixed(2)} €
+          </span>
+          {tieneOferta && (
+            <span className="text-xs text-[var(--muted-foreground)] line-through">
+              {p.oldPrice!.toFixed(2)} €
             </span>
-            {hasDiscount && (
-              <span className="text-[9px] text-[var(--muted-foreground)] line-through">
-                {Number(product.oldPrice).toFixed(2)} €
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={handleAddToCart}
-            className="relative z-20 grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] transition-all hover:scale-110 hover:border-[#3ecf8e] hover:bg-[#3ecf8e] hover:text-black"
-            aria-label="Añadir al carrito"
-          >
-            <ShoppingBag size={13} />
-          </button>
+          )}
         </div>
+
+        <span className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-[#3ecf8e]/10 py-2 text-xs font-bold text-[#3ecf8e] transition-colors group-hover:bg-[#3ecf8e] group-hover:text-black">
+          <MessageCircle size={13} />
+          Hablar con el vendedor
+        </span>
       </div>
-    </article>
+    </Link>
   )
 }

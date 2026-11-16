@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { Search, User, LogOut, Package, LayoutDashboard, Store } from 'lucide-react'
+import { Search, User, LogOut, Package, LayoutDashboard, Store, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
-import { CartButton } from '@/components/cart/cart-button'
+import { ChatBell } from '@/components/chat/chat-bell'
 
 type Me = {
   user: { id: string; email: string; name: string; isAdmin: boolean } | null
@@ -92,7 +92,9 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <CartButton />
+
+          {/* Icono de chats con contador, sonido y notificación */}
+          {user && <ChatBell />}
 
           {user ? (
             <div className="relative">
@@ -134,6 +136,10 @@ export function Header() {
 
                     <Link href="/perfil" onClick={() => setMenuAbierto(false)} className={menuLink}>
                       <User size={16} /> Mi perfil
+                    </Link>
+
+                    <Link href="/chat" onClick={() => setMenuAbierto(false)} className={menuLink}>
+                      <MessageCircle size={16} /> Mis chats
                     </Link>
 
                     {seller?.status === 'approved' ? (

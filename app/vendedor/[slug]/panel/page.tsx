@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Eye } from 'lucide-react'
+import { ArrowLeft, Eye, MessageCircle } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { ProductsTable } from '@/components/admin/products-table'
 import { requireSellerPage } from '@/lib/auth/seller-page'
@@ -25,9 +25,14 @@ export default async function PanelVendedorPage({ params }: { params: Promise<{ 
             <h1 className="text-2xl font-bold sm:text-3xl">{seller.storeName}</h1>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">Gestiona los productos de tu tienda.</p>
           </div>
-          <Link href={`/vendedor/${seller.slug}`} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[#ffd700]/40">
-            <Eye size={15} /> Ver mi tienda pública
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/chat" className="flex items-center gap-2 rounded-xl bg-[#3ecf8e] px-4 py-2 text-sm font-bold text-black hover:bg-[#d4af37]">
+              <MessageCircle size={15} /> Mis chats
+            </Link>
+            <Link href={`/vendedor/${seller.slug}`} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[#ffd700]/40">
+              <Eye size={15} /> Ver mi tienda pública
+            </Link>
+          </div>
         </div>
         <ProductsTable
           productos={productos}
