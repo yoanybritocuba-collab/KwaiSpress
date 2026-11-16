@@ -12,7 +12,6 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   const { id } = await searchParams
   const user = await getCurrentUser()
   
-  // Si no hay usuario NI hay id de chat, mostramos un mensaje en vez de redirigir
   if (!user && !id) {
     return (
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex items-center justify-center">
@@ -32,23 +31,14 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   let misChats: any[] = []
   if (userId) {
     misChats = await db.select({
-      id: chats.id,
-      productId: chats.productId,
-      productTitle: products.title,
-      customerName: users.name,
-      guestName: chats.guestName,
-      guestEmail: chats.guestEmail,
+      id: chats.id, productId: chats.productId, productTitle: products.title,
+      customerName: users.name, guestName: chats.guestName, guestEmail: chats.guestEmail,
       lastMessageAt: chats.lastMessageAt,
     })
     .from(chats)
     .innerJoin(products, eq(chats.productId, products.id))
     .leftJoin(users, eq(chats.customerId, users.id))
-    .where(
-      or(
-        eq(chats.customerId, userId),
-        sellerId ? eq(chats.sellerId, sellerId) : undefined
-      )
-    )
+    .where(or(eq(chats.customerId, userId), sellerId ? eq(chats.sellerId, sellerId) : undefined))
     .orderBy(chats.lastMessageAt)
   }
 
@@ -57,12 +47,8 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   
   if (id) {
     const chatRows = await db.select({
-      id: chats.id,
-      productId: chats.productId,
-      productTitle: products.title,
-      customerName: users.name,
-      guestName: chats.guestName,
-      guestEmail: chats.guestEmail,
+      id: chats.id, productId: chats.productId, productTitle: products.title,
+      customerName: users.name, guestName: chats.guestName, guestEmail: chats.guestEmail,
       lastMessageAt: chats.lastMessageAt,
     })
     .from(chats)
@@ -73,10 +59,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
 
     if (chatRows[0]) {
       activeChat = chatRows[0]
-      const msgs = await db.select()
-        .from(messages)
-        .where(eq(messages.chatId, id))
-        .orderBy(asc(messages.createdAt))
+      const msgs = await db.select().from(messages).where(eq(messages.chatId, id)).orderBy(asc(messages.createdAt))
       activeMessages = msgs || []
     }
   }
@@ -87,10 +70,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
-          <Link href={isGuest ? "/" : "/perfil"} className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[#d4af37]">
-            <ArrowLeft size={16} />
-            {isGuest ? 'Volver a la tienda' : 'Volver al perfil'}
-          </Link>
+          <Link href={isGuest ? "/" : "/perfil"} className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[#d4af37]"><ArrowLeft size={16} />{isGuest ? 'Volver a la tienda' : 'Volver al perfil'}</Link>
         </div>
       </header>
 
@@ -101,17 +81,9 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
             <div className="divide-y divide-[var(--border)] h-[500px] overflow-y-auto">
               {misChats.length === 0 && <p className="p-4 text-sm text-white/50">No tienes conversaciones aún.</p>}
               {misChats.map((chat) => (
-                <Link 
-                  key={chat.id} 
-                  href={`/chat?id=${chat.id}`}
-                  className={`block p-4 hover:bg-white/5 transition-colors ${activeChat?.id === chat.id ? 'bg-white/10' : ''}`}
-                >
+                <Link key={chat.id} href={`/chat?id=${chat.id}`} className={`block p-4 hover:bg-white/5 transition-colors ${activeChat?.id === chat.id ? 'bg-white/10' : ''}`}>
                   <p className="font-medium truncate">{chat.productTitle}</p>
-                  <p className="text-xs text-white/50 mt-1">
-                    {chat.guestName 
-                      ? `${chat.guestName} (${chat.guestEmail})` 
-                      : `Cliente: ${chat.customerName}`}
-                  </p>
+                  <p className="text-xs text-white/50 mt-1">{chat.guestName ? `${chat.guestName} (${chat.guestEmail})` : `Cliente: ${chat.customerName}`}</p>
                 </Link>
               ))}
             </div>
@@ -123,22 +95,12 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
             <>
               <div className="p-4 border-b border-[var(--border)] bg-[#111]">
                 <h2 className="font-bold">{activeChat.productTitle}</h2>
-                {activeChat.guestName && (
-                  <p className="text-xs text-white/50 mt-1">
-                    Cliente: {activeChat.guestName} ({activeChat.guestEmail})
-                  </p>
-                )}
+                {activeChat.guestName && (<p className="text-xs text-white/50 mt-1">Cliente: {activeChat.guestName} ({activeChat.guestEmail})</p>)}
               </div>
-              <ChatBox 
-                chatId={activeChat.id} 
-                currentUserId={userId || 'invitado'} 
-                initialMessages={activeMessages} 
-              />
+              <ChatBox chatId={activeChat.id} currentUserId={userId || 'invitado'} initialMessages={activeMessages} />
             </>
           ) : (
-            <div className="h-[500px] flex items-center justify-center text-white/40">
-              Selecciona un chat para empezar a hablar
-            </div>
+            <div className="h-[500px] flex items-center justify-center text-white/40">Selecciona un chat para empezar a hablar</div>
           )}
         </div>
       </div>

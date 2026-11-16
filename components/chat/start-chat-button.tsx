@@ -27,14 +27,7 @@ export function StartChatButton({ productId, sellerId }: { productId: string, se
       setError(res.error)
       setLoading(false)
     } else if (res?.chatId) {
-      // Forzamos una navegación del navegador fuera del ciclo de React
-      // para evitar que lo interprete como un error de renderizado (React #441)
-      try {
-        window.location.replace(`/chat?id=${res.chatId}`)
-      } catch (e) {
-        // Fallback por si algo falla
-        window.location.href = `/chat?id=${res.chatId}`
-      }
+      window.location.replace(`/chat?id=${res.chatId}`)
     }
   }
 
